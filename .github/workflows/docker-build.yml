@@ -130,6 +130,23 @@ jobs:
           docker exec smoke bash -c 'pgrep -f "[/]opt/google/chrome/chrome" >/dev/null'
           echo "Chrome 有头启动成功"
 
+      - name: 画面通道必须免认证
+        run: |
+          set -e
+          # 用镜像自带的 Chrome 真连一次 WebSocket：页面加载 200 只代表 HTTP 层通了，
+          # 真正决定「能否看到桌面」的是 VNC 层的鉴权。少了 -SecurityTypes None 时，
+          # 页面上会出现 "Authentication failure: No password configured for VNC Auth"。
+          docker exec smoke bash -c '
+            timeout 60 google-chrome --headless=new --no-sandbox --disable-gpu \
+              --virtual-time-budget=15000 --dump-dom http://127.0.0.1:6901/ 2>/dev/null \
+              > /tmp/dom.html || true
+            if grep -qi "Authentication failure" /tmp/dom.html; then
+              echo "::error::画面通道仍在鉴权：$(grep -oi "[^>]*Authentication failure[^<]*" /tmp/dom.html | head -2)"
+              exit 1
+            fi
+            echo "DOM 中未出现鉴权失败"
+          '
+
       - name: 清理
         if: always()
         run: docker rm -f smoke || true

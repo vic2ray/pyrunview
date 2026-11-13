@@ -27,9 +27,11 @@ fi
 if [ ! -S "$SOCKET" ]; then
     rm -f "/tmp/.X${DISPLAY_NUM#:}-lock" "$SOCKET"
 
-    # 参数含义（见 Xvnc(1)）：
+    # 参数含义（见 Xvnc(1)），两个认证开关各管一层，缺一不可：
     #   -websocketPort   Web 端口，默认 6800。注意不是 -rfbport（那是 RFB 端口）
-    #   -disableBasicAuth 关掉 Web 登录；-SecurityTypes 只管 RFB 鉴权，管不到这里
+    #   -disableBasicAuth 关掉 HTTP Basic Auth（页面加载这一层）
+    #   -SecurityTypes None 关掉 VNC/RFB 鉴权（画面上来这一层）
+    #     少了它浏览器会报：Authentication failure: No password configured for VNC Auth
     #   -httpd           静态资源目录，与 websocket 同端口
     "$SERVER" "$DISPLAY_NUM" \
         -geometry "${SCREEN%x*}" \
@@ -38,6 +40,7 @@ if [ ! -S "$SOCKET" ]; then
         -websocketPort "$PORT" \
         -httpd /usr/share/kasmvnc/www \
         -disableBasicAuth \
+        -SecurityTypes None \
         -BlacklistThreshold 0 \
         -AlwaysShared \
         -AcceptSetDesktopSize \
