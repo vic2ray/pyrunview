@@ -37,6 +37,7 @@ RUN set -eux; \
         libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
         libgbm1 libasound2 libpango-1.0-0 libcairo2 \
         xfonts-base \
+        fonts-noto-cjk fonts-noto-color-emoji \
         openbox pcmanfm \
         procps iproute2 curl; \
     install -m 0755 -d /etc/apt/keyrings; \
