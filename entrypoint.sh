@@ -27,15 +27,18 @@ fi
 if [ ! -S "$SOCKET" ]; then
     rm -f "/tmp/.X${DISPLAY_NUM#:}-lock" "$SOCKET"
 
-    # -SecurityTypes None：不登录直接进桌面（内网、一次性容器）
-    # -rfbport 同时作为 Web 端口，network.websocket_port 已配成同一个值
+    # 参数含义（见 Xvnc(1)）：
+    #   -websocketPort   Web 端口，默认 6800。注意不是 -rfbport（那是 RFB 端口）
+    #   -disableBasicAuth 关掉 Web 登录；-SecurityTypes 只管 RFB 鉴权，管不到这里
+    #   -httpd           静态资源目录，与 websocket 同端口
     "$SERVER" "$DISPLAY_NUM" \
         -geometry "${SCREEN%x*}" \
         -depth "${SCREEN##*x}" \
-        -rfbport "$PORT" \
         -interface 0.0.0.0 \
+        -websocketPort "$PORT" \
         -httpd /usr/share/kasmvnc/www \
-        -SecurityTypes None \
+        -disableBasicAuth \
+        -BlacklistThreshold 0 \
         -AlwaysShared \
         -AcceptSetDesktopSize \
         >/tmp/kasmvnc.log 2>&1 &

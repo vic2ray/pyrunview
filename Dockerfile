@@ -37,7 +37,7 @@ RUN set -eux; \
         libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
         libgbm1 libasound2 libpango-1.0-0 libcairo2 \
         xfonts-base \
-        procps; \
+        procps iproute2 curl; \
     install -m 0755 -d /etc/apt/keyrings; \
     wget -qO- https://dl.google.com/linux/linux_signing_key.pub \
         | gpg --dearmor -o /etc/apt/keyrings/google.gpg; \

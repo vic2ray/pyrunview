@@ -1,0 +1,2 @@
+patchright
+PyPasser[vision]>=1.1

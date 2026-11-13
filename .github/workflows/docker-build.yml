@@ -7,6 +7,7 @@ on:
     paths-ignore:
       - "**.md"
       - ".gitignore"
+      - "example/**"
   workflow_dispatch:
 
 env:
@@ -75,7 +76,7 @@ jobs:
       - name: 起桌面并验证 6901 可访问
         run: |
           set -e
-          docker run -d --name smoke -p 6901:6901 "$IMAGE:latest" sleep 120
+          docker run -d --name smoke -p 6901:6901 "$IMAGE:latest" sleep 300
           ok=0
           for i in $(seq 1 40); do
             # -f 让 401/500 也判定失败：能通过就同时证明「不需要登录」
@@ -87,8 +88,17 @@ jobs:
             sleep 1
           done
           if [ "$ok" -ne 1 ]; then
-            echo "::error::6901 在 40 秒内没有返回可用的 200" >&2
-            docker logs smoke || true
+            # annotation 是这个工作流唯一能被外部读到的东西，诊断信息压成几行塞进去
+            echo "::error::6901 无响应；容器内监听端口与 KasmVNC 日志见下"
+            docker exec smoke bash -c '
+              echo "== 监听端口 =="; (ss -ltnp 2>/dev/null || netstat -ltnp 2>/dev/null || true) | head -20
+              echo "== X socket =="; ls -l /tmp/.X11-unix/ 2>/dev/null || echo none
+              echo "== 进程 =="; ps aux | grep -iE "kasm|Xvnc" | grep -v grep || echo none
+              echo "== kasmvnc.log =="; tail -n 30 /tmp/kasmvnc.log 2>/dev/null || echo none
+              echo "== /usr/bin 里的 X 服务器 =="; ls -l /usr/bin/Xkasmvnc /usr/bin/Xvnc 2>/dev/null || echo none
+              echo "== 容器内自检 6901 =="; curl -sS -m 3 -o /dev/null -w "%{http_code}\n" http://127.0.0.1:6901/ || echo curlfail
+            ' 2>&1 | while IFS= read -r line; do echo "::error::$line"; done
+            docker logs smoke 2>&1 | tail -n 20 | while IFS= read -r line; do echo "::error::docker| $line"; done
             exit 1
           fi
           echo "--- 状态码 ---"
