@@ -76,19 +76,27 @@ jobs:
         run: |
           set -e
           docker run -d --name smoke -p 6901:6901 "$IMAGE:latest" sleep 120
+          ok=0
           for i in $(seq 1 40); do
+            # -f 让 401/500 也判定失败：能通过就同时证明「不需要登录」
             if curl -fsS -o /dev/null http://127.0.0.1:6901/; then
               echo "6901 已就绪（第 ${i} 次尝试）"
+              ok=1
               break
             fi
             sleep 1
           done
-          echo "--- HTTP 响应头 ---"
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::6901 在 40 秒内没有返回可用的 200" >&2
+            docker logs smoke || true
+            exit 1
+          fi
+          echo "--- 状态码 ---"
+          curl -sS -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:6901/
+          echo "--- 响应头 ---"
           curl -sS -D - -o /dev/null http://127.0.0.1:6901/ || true
-          echo "--- 欢迎页内容（前 20 行）---"
+          echo "--- 页面内容（前 20 行）---"
           curl -sS http://127.0.0.1:6901/ | head -20 || true
-          echo "--- 容器内日志 ---"
-          docker logs smoke || true
 
       - name: 确认桌面进程真的起来了
         run: |
@@ -98,7 +106,19 @@ jobs:
             ls -l /tmp/.X11-unix/ || true
             ps aux | grep -i kasm | grep -v grep || true
           '
-          docker exec smoke bash -c 'test -S /tmp/.X11-unix/X99' && echo "X socket 存在"
+          docker exec smoke bash -c 'test -S /tmp/.X11-unix/X99'
+          echo "X socket 存在"
+          # Chrome 必须能在这块虚拟屏上真的有头启动，否则「能看见画面」无从谈起
+          docker exec smoke bash -c '
+            google-chrome --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --headless=false --no-first-run --no-default-browser-check \
+              --user-data-dir=/tmp/chrome-smoke about:blank >/tmp/chrome.log 2>&1 &
+            sleep 8
+            ps aux | grep -c "[c]hrome" || true
+            tail -n 5 /tmp/chrome.log || true
+          '
+          docker exec smoke bash -c 'pgrep -f "[/]opt/google/chrome/chrome" >/dev/null'
+          echo "Chrome 有头启动成功"
 
       - name: 清理
         if: always()
