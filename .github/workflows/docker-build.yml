@@ -1,0 +1,105 @@
+name: Build pyrunview
+
+on:
+  push:
+    branches: [main]
+    # 用 paths-ignore 而不是 paths：强制推送时 paths 过滤可能因空 diff 而不触发
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull
+        run: docker pull "$IMAGE:latest"
+
+      - name: 版本自检
+        run: |
+          docker run --rm --entrypoint bash "$IMAGE:latest" -c '
+            set -e
+            python3 --version
+            google-chrome --version
+            echo "--- X 服务器 ---"
+            ls -l /usr/bin/Xkasmvnc /usr/bin/Xvnc 2>/dev/null || true
+          '
+
+      - name: 起桌面并验证 6901 可访问
+        run: |
+          set -e
+          docker run -d --name smoke -p 6901:6901 "$IMAGE:latest" sleep 120
+          for i in $(seq 1 40); do
+            if curl -fsS -o /dev/null http://127.0.0.1:6901/; then
+              echo "6901 已就绪（第 ${i} 次尝试）"
+              break
+            fi
+            sleep 1
+          done
+          echo "--- HTTP 响应头 ---"
+          curl -sS -D - -o /dev/null http://127.0.0.1:6901/ || true
+          echo "--- 欢迎页内容（前 20 行）---"
+          curl -sS http://127.0.0.1:6901/ | head -20 || true
+          echo "--- 容器内日志 ---"
+          docker logs smoke || true
+
+      - name: 确认桌面进程真的起来了
+        run: |
+          set -e
+          docker exec smoke bash -c '
+            echo "--- DISPLAY=$DISPLAY ---"
+            ls -l /tmp/.X11-unix/ || true
+            ps aux | grep -i kasm | grep -v grep || true
+          '
+          docker exec smoke bash -c 'test -S /tmp/.X11-unix/X99' && echo "X socket 存在"
+
+      - name: 清理
+        if: always()
+        run: docker rm -f smoke || true

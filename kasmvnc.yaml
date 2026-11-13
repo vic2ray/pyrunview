@@ -1,0 +1,41 @@
+# KasmVNC 服务端配置（镜像内路径：/etc/kasmvnc/kasmvnc.yaml）
+#
+# 目标：浏览器直接打开 :6901 就是桌面，明文 HTTP，不要登录，监听所有网卡。
+# 内网 + 一次性容器场景，不做安全加固。
+
+desktop:
+  resolution:
+    width: 1920
+    height: 1080
+  allow_resize: true
+  pixel_depth: 24
+
+network:
+  protocol: http
+  interface: 0.0.0.0
+  websocket_port: 6901
+  use_ipv4: true
+  use_ipv6: false
+  ssl:
+    # 默认 true，必须显式关掉，否则浏览器会被要求走 https
+    require_ssl: false
+  udp:
+    # 置为 127.0.0.1 等于禁用 WebRTC（容器内没有可用公网 IP）
+    public_ip: 127.0.0.1
+
+security:
+  brute_force_protection:
+    # 0 = 不因失败次数拉黑，避免脚本频繁重连时把自己锁在外面
+    blacklist_threshold: 0
+
+server:
+  httpd_directory: /usr/share/kasmvnc/www
+  allow_environment_variables_to_override_config_settings: true
+
+runtime_configuration:
+  # 允许浏览器端调画质/缩放，1080p 全屏时体验更好
+  allow_client_to_override_kasm_server_settings: true
+
+logging:
+  log_dest: logfile
+  level: 30
