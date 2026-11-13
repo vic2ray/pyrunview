@@ -10,6 +10,16 @@ SOCKET="/tmp/.X11-unix/X${DISPLAY_NUM#:}"
 
 export DISPLAY="$DISPLAY_NUM"
 
+# 桌面组件：openbox 管窗口，pcmanfm 画图标。两个都可关闭（纯脚本运行省内存）。
+DESKTOP="${PYRUNVIEW_DESKTOP:-1}"
+
+start_desktop() {
+    [ "$DESKTOP" = "0" ] && return 0
+    command -v openbox >/dev/null 2>&1 && (openbox >/dev/null 2>&1 &)
+    command -v pcmanfm >/dev/null 2>&1 && (pcmanfm --desktop >/dev/null 2>&1 &)
+    return 0
+}
+
 # KasmVNC 的 X 服务器在不同版本里叫 Xkasmvnc 或 Xvnc，两个都认。
 SERVER=""
 for candidate in /usr/bin/Xkasmvnc /usr/bin/Xvnc; do
@@ -49,6 +59,7 @@ if [ ! -S "$SOCKET" ]; then
 
     for _ in $(seq 1 200); do
         if [ -S "$SOCKET" ]; then
+            start_desktop
             exec "$@"
         fi
         if ! kill -0 "$vnc_pid" 2>/dev/null; then
@@ -64,4 +75,5 @@ if [ ! -S "$SOCKET" ]; then
     exit 1
 fi
 
+start_desktop
 exec "$@"

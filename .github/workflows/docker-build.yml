@@ -147,6 +147,21 @@ jobs:
             echo "DOM 中未出现鉴权失败"
           '
 
+      - name: 桌面要有图标层和窗口管理器
+        run: |
+          set -e
+          docker exec smoke bash -c '
+            set -e
+            test -x /root/Desktop/google-chrome.desktop
+            echo "快捷方式存在"
+            grep -q -- "--no-sandbox" /root/Desktop/google-chrome.desktop
+            echo "快捷方式带 --no-sandbox（root 下必需）"
+            command -v openbox
+            command -v pcmanfm
+            echo "--- 桌面进程 ---"
+            ps -eo args | grep -E "[o]penbox|[p]cmanfm" || { echo "::error::桌面进程没起来"; exit 1; }
+          '
+
       - name: 清理
         if: always()
         run: docker rm -f smoke || true

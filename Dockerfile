@@ -37,6 +37,7 @@ RUN set -eux; \
         libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
         libgbm1 libasound2 libpango-1.0-0 libcairo2 \
         xfonts-base \
+        openbox pcmanfm \
         procps iproute2 curl; \
     install -m 0755 -d /etc/apt/keyrings; \
     wget -qO- https://dl.google.com/linux/linux_signing_key.pub \
@@ -55,6 +56,12 @@ RUN set -eux; \
     ls -1 /usr/bin | grep -iE '^(X|kasm)?vnc|kasmxproxy' || true
 
 WORKDIR /app
+
+# 空桌面不好用：给出窗口管理器 + 图标层 + 一个 Chrome 快捷方式。
+# 没有窗口管理器时 Chrome 窗口没有边框、也没法拖动；没有图标层时桌面是纯黑的。
+COPY desktop/google-chrome.desktop /root/Desktop/google-chrome.desktop
+COPY desktop/README.txt /root/Desktop/README.txt
+RUN chmod +x /root/Desktop/google-chrome.desktop
 
 # KasmVNC 服务端配置：明文 HTTP、监听所有网卡、1080p、不拉黑
 COPY kasmvnc.yaml /etc/kasmvnc/kasmvnc.yaml

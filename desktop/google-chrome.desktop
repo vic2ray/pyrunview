@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Google Chrome
+Name[zh_CN]=Google Chrome
+GenericName=Web Browser
+GenericName[zh_CN]=网页浏览器
+Comment=Open the built-in browser
+Comment[zh_CN]=打开内置浏览器
+# 容器里以 root 运行，必须带 --no-sandbox；--disable-dev-shm-usage 避免小 /dev/shm 崩掉
+Exec=google-chrome --no-sandbox --disable-dev-shm-usage --start-maximized
+Icon=google-chrome
+Terminal=false
+Categories=Network;WebBrowser;
+StartupNotify=true
